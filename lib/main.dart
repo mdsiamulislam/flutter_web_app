@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutterwebapp/core/services/check_connectivity.dart';
 import 'package:flutterwebapp/screens/home_screen.dart';
-import 'package:flutterwebapp/screens/no_internet_screen.dart';
 
 void main()async{
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,7 +23,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: isInternetConnected ? HomeScreen() : NoInternetScreen(),
+      home: HomeScreen(),
     );
   }
 }

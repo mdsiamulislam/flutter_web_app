@@ -328,7 +328,6 @@ class _WebViewAppState extends State<WebViewApp> {
 
     return Scaffold(
       appBar: AppBar(
-        elevation: 0,
         backgroundColor: isDark ? Colors.grey.shade900 : Colors.white,
         foregroundColor: isDark ? Colors.white : Colors.black,
         title: GestureDetector(
