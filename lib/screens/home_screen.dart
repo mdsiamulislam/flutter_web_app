@@ -6,16 +6,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
-import 'dart:io';
-
-// Don't forget to add these dependencies to pubspec.yaml:
-// dependencies:
-//   webview_flutter: ^4.4.2
-//   connectivity_plus: ^5.0.2
-//   share_plus: ^7.2.2
-//   url_launcher: ^6.2.2
-//   file_picker: ^6.1.1
-//   permission_handler: ^11.1.0
 
 class WebViewApp extends StatefulWidget {
   final String initialUrl;
@@ -328,8 +318,10 @@ class _WebViewAppState extends State<WebViewApp> {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: isDark ? Colors.grey.shade900 : Colors.white,
+        backgroundColor: isDark ? Colors.grey.shade900 : Color(0xFF298fa3),
         foregroundColor: isDark ? Colors.white : Colors.black,
+        centerTitle: true,
+        elevation:2,
         title: GestureDetector(
           onTap: () {
             setState(() {
@@ -342,42 +334,43 @@ class _WebViewAppState extends State<WebViewApp> {
             children: [
               Text(
                 _currentTitle,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.white, fontFamily: 'Poppins'),
                 overflow: TextOverflow.ellipsis,
               ),
-              Text(
-                Uri.parse(_currentUrl).host,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
+              // Text(
+              //   Uri.parse(_currentUrl).host,
+              //   style: TextStyle(
+              //     fontSize: 12,
+              //     color: Colors.grey.shade600,
+              //   ),
+              //   overflow: TextOverflow.ellipsis,
+              // ),
             ],
           ),
         ),
+        leading:
+        IconButton(
+          onPressed: _showOptionsMenu,
+          icon: const Icon(Icons.menu, color: Colors.white, size: 30),
+        ),
         actions: [
-          IconButton(
-            onPressed: _canGoBack ? _goBack : null,
-            icon: const Icon(Icons.arrow_back_ios),
-            iconSize: 20,
-          ),
-          IconButton(
-            onPressed: _canGoForward ? _goForward : null,
-            icon: const Icon(Icons.arrow_forward_ios),
-            iconSize: 20,
-          ),
-          IconButton(
-            onPressed: _refreshPage,
-            icon: const Icon(Icons.refresh),
-          ),
+          // IconButton(
+          //   onPressed: _canGoBack ? _goBack : null,
+          //   icon: const Icon(Icons.arrow_back_ios),
+          //   iconSize: 20,
+          // ),
+          // IconButton(
+          //   onPressed: _canGoForward ? _goForward : null,
+          //   icon: const Icon(Icons.arrow_forward_ios),
+          //   iconSize: 20,
+          // ),
+          // IconButton(
+          //   onPressed: _refreshPage,
+          //   icon: const Icon(Icons.refresh),
+          // ),
           IconButton(
             onPressed: _shareCurrentPage,
-            icon: const Icon(Icons.share),
-          ),
-          IconButton(
-            onPressed: _showOptionsMenu,
-            icon: const Icon(Icons.more_vert),
+            icon: const Icon(Icons.share, color: Colors.white, size: 30),
           ),
         ],
         bottom: PreferredSize(
@@ -419,7 +412,16 @@ class _WebViewAppState extends State<WebViewApp> {
       ),
       body: _hasError
           ? _buildErrorScreen()
-          : WebViewWidget(controller: _controller),
+          : RefreshIndicator(
+        onRefresh: () async {
+          _refreshPage();
+          // Wait for page to finish loading
+          while (_isLoading) {
+            await Future.delayed(const Duration(milliseconds: 100));
+          }
+        },
+        child: WebViewWidget(controller: _controller),
+      ),
       floatingActionButton: _isLoading
           ? FloatingActionButton(
         mini: true,
