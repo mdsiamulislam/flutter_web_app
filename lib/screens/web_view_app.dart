@@ -266,9 +266,10 @@ class _WebViewAppState extends State<WebViewApp> {
   // Fixed share function
   void _shareCurrentPage() {
     try {
-      Share.share(
-        _currentUrl,
-        subject: _currentTitle,
+      SharePlus.instance.share(
+        ShareParams(
+          text: 'Check out this page: $_currentUrl'
+        )
       );
     } catch (e) {
       _showSnackBar('Share failed: $e');
