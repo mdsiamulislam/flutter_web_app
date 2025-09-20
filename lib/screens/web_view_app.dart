@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,7 +7,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
 import 'package:screenshot/screenshot.dart';
 import 'package:path_provider/path_provider.dart';
@@ -49,23 +47,6 @@ class _WebViewAppState extends State<WebViewApp> {
     _initializeWebView();
     _checkConnectivity();
     _setupConnectivityListener();
-    requestStoragePermission();
-  }
-
-  Future<void> requestStoragePermission() async {
-    PermissionStatus status = await Permission.storage.request();
-
-    if (status.isGranted) {
-      // Permission granted, proceed with storage operations
-      print('Storage permission granted');
-    } else if (status.isDenied) {
-      // Permission denied, handle accordingly (e.g., show a message)
-      print('Storage permission denied');
-    } else if (status.isPermanentlyDenied) {
-      // Permission permanently denied, guide user to app settings
-      print('Storage permission permanently denied, opening settings');
-      openAppSettings(); // Opens app settings for user to manually enable
-    }
   }
 
   void _initializeWebView() {
@@ -172,55 +153,8 @@ class _WebViewAppState extends State<WebViewApp> {
     await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
 
-  // Check and request storage permission
-  Future<bool> _checkStoragePermission() async {
-    var status = await Permission.camera.status;
-    if (status.isDenied) {
-      // We haven't asked for permission yet or the permission has been denied before, but not permanently.
-    }
-
-// You can also directly ask permission about its status.
-    if (await Permission.location.isRestricted) {
-      // The OS restricts access, for example, because of parental controls.
-    }
-    if (Platform.isAndroid) {
-      // For Android 13+ (API level 33+)
-      if (await Permission.photos.isGranted ||
-          await Permission.videos.isGranted ||
-          await Permission.audio.isGranted) {
-        return true;
-      }
-
-      // For older Android versions
-      if (await Permission.storage.isGranted) {
-        return true;
-      }
-
-      // Request permissions
-      Map<Permission, PermissionStatus> statuses = await [
-        Permission.storage,
-        Permission.manageExternalStorage,
-      ].request();
-
-      return statuses[Permission.storage]?.isGranted == true ||
-          statuses[Permission.manageExternalStorage]?.isGranted == true;
-    }
-
-    // iOS doesn't need explicit storage permission for app documents
-    return true;
-  }
-
   Future<void> _handleFileUpload() async {
     try {
-      // Check storage permission
-      bool hasPermission = await _checkStoragePermission();
-
-      if (!hasPermission) {
-        _showSnackBar('Storage permission is required to select files');
-        // Show permission dialog
-        _showPermissionDialog('Storage', 'file selection');
-        return;
-      }
 
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         allowMultiple: true,
@@ -241,34 +175,14 @@ class _WebViewAppState extends State<WebViewApp> {
     }
   }
 
-  Future<void> _downloadFile(String url) async {
-    try {
-      // Check storage permission
-      bool hasPermission = await _checkStoragePermission();
-
-      if (!hasPermission) {
-        _showSnackBar('Storage permission is required for downloads');
-        _showPermissionDialog('Storage', 'downloads');
-        return;
-      }
-
-      _showSnackBar('Download started...');
-
-      // Launch the download URL
-      if (await canLaunchUrl(Uri.parse(url))) {
-        await launchUrl(Uri.parse(url));
-      }
-    } catch (e) {
-      _showSnackBar('Download failed: $e');
-    }
-  }
 
   // Fixed share function
-  void _shareCurrentPage() {
+  void _shareCurrentPage()async{
     try {
-      SharePlus.instance.share(
+      await SharePlus.instance.share(
         ShareParams(
-          text: 'Check out this page: $_currentUrl'
+          text: 'Check out this page: $_currentUrl',
+          subject: _currentTitle,
         )
       );
     } catch (e) {
@@ -276,77 +190,31 @@ class _WebViewAppState extends State<WebViewApp> {
     }
   }
 
-  // Fixed screenshot function with proper permission handling
-  Future<void> _takeScreenshotAndShare() async {
+  Future<void> captureAndShareScreenshot() async {
     try {
-      // Check storage permission
-      bool hasPermission = await _checkStoragePermission();
 
-      if (!hasPermission) {
-        _showSnackBar('Storage permission is required for screenshots');
-        _showPermissionDialog('Storage', 'screenshots');
-        return;
-      }
-
-      // Use the Screenshot widget controller instead
+      // Capture screenshot
       final image = await _screenshotController.capture();
-
-      if (image != null) {
-        // Get app documents directory
-        final directory = await getApplicationDocumentsDirectory();
-        final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final filePath = '${directory.path}/screenshot_$timestamp.png';
-
-        // Create and write file
-        final file = File(filePath);
-        await file.writeAsBytes(image);
-
-        // Share the screenshot
-        await Share.shareXFiles(
-          [XFile(file.path)],
-          text: 'Check out this page: $_currentTitle',
-          subject: _currentTitle,
-        );
-
-        _showSnackBar('Screenshot captured and shared!');
-      } else {
+      if (image == null) {
         _showSnackBar('Failed to capture screenshot');
-      }
-    } catch (e) {
-      debugPrint("Screenshot error: $e");
-      _showSnackBar('Screenshot failed: $e');
-    }
-  }
-
-  // Alternative screenshot method using Screenshot widget
-  Future<void> _takeScreenshotWithWidget() async {
-    try {
-      // Check storage permission
-      bool hasPermission = await _checkStoragePermission();
-
-      if (!hasPermission) {
-        _showSnackBar('Storage permission is required for screenshots');
-        _showPermissionDialog('Storage', 'screenshots');
         return;
       }
 
-      final image = await _screenshotController.capture();
+      // Save to app documents
+      final directory = await getApplicationDocumentsDirectory();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final filePath = '${directory.path}/screenshot_$timestamp.png';
+      final file = File(filePath);
+      await file.writeAsBytes(image);
 
-      if (image != null) {
-        final directory = await getApplicationDocumentsDirectory();
-        final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final filePath = '${directory.path}/screenshot_$timestamp.png';
-        final file = File(filePath);
-        await file.writeAsBytes(image);
+      // Share the screenshot
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Check out this page: $_currentTitle',
+        subject: _currentTitle,
+      );
 
-        await Share.shareXFiles(
-          [XFile(file.path)],
-          text: 'Check out this page: $_currentTitle',
-          subject: _currentTitle,
-        );
-
-        _showSnackBar('Screenshot captured and shared!');
-      }
+      _showSnackBar('Screenshot captured and shared!');
     } catch (e) {
       debugPrint("Screenshot error: $e");
       _showSnackBar('Screenshot failed: $e');
@@ -392,34 +260,6 @@ class _WebViewAppState extends State<WebViewApp> {
     );
   }
 
-  // Show permission dialog
-  void _showPermissionDialog(String permission, String purpose) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('$permission Permission Required'),
-          content: Text(
-            'This app needs $permission permission for $purpose. '
-                'Please grant the permission in the app settings.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                openAppSettings();
-              },
-              child: const Text('Settings'),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   void _showOptionsMenu() {
     showModalBottomSheet(
@@ -470,7 +310,7 @@ class _WebViewAppState extends State<WebViewApp> {
               title: 'Take Screenshot',
               onTap: () {
                 Navigator.pop(context);
-                _takeScreenshotAndShare();
+                captureAndShareScreenshot();
               },
             ),
             _buildOptionTile(
@@ -658,7 +498,7 @@ class _WebViewAppState extends State<WebViewApp> {
               ),
               const SizedBox(height: 24),
               Text(
-                'No Internet Connection',
+                'No Internet Connection found',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
